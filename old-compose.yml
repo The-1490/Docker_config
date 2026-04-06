@@ -12,10 +12,6 @@ services:
       N8N_EXECUTION_MODE: queue
       REDIS_URL: redis://redis:6379
       N8N_WORKERS_ENABLED: "false"
-      N8N_RUNNERS_ENABLED: "true"
-      N8N_RUNNERS_MODE: external
-      N8N_RUNNERS_BROKER_LISTEN_ADDRESS: "0.0.0.0"
-      N8N_RUNNERS_AUTH_TOKEN: AABBCCdd112233
       OLLAMA_HOST: http://ollama:11434
       RAGAS_VERIFIER_URL: http://ragas-verifier:8900
       LIGHTRAG_URL: http://lightrag:9621
@@ -54,8 +50,6 @@ services:
     container_name: n8n-task-runners
     restart: unless-stopped
     environment:
-      N8N_RUNNERS_AUTH_TOKEN: AABBCCdd112233
-      N8N_RUNNERS_TASK_BROKER_URI: http://n8n:5679
       N8N_EXECUTION_MODE: queue
       REDIS_URL: redis://redis:6379
       N8N_NATIVE_PYTHON_RUNNER: "true"
