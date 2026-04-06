@@ -1,0 +1,328 @@
+services:
+  n8n:
+    image: n8nio/n8n:2.10.0
+    container_name: n8n
+    restart: unless-stopped
+    ports:
+      - "5550:5678"
+    environment:
+      N8N_PORT: 5678
+      N8N_HOST: 0.0.0.0
+      N8N_PROTOCOL: http
+      N8N_EXECUTION_MODE: queue
+      REDIS_URL: redis://redis:6379
+      N8N_WORKERS_ENABLED: "false"
+      OLLAMA_HOST: http://ollama:11434
+      RAGAS_VERIFIER_URL: http://ragas-verifier:8900
+      LIGHTRAG_URL: http://lightrag:9621
+      HYBRID_RETRIEVER_URL: http://hybrid-retriever:8765
+    volumes:
+      - "D:/Server/n8n/data:/home/node/.n8n"
+      - "D:/Server/n8n/Backup:/backup"
+      - "D:/Server/n8n/input document:/input_docs"
+    depends_on:
+      redis:
+        condition: service_healthy
+      ollama:
+        condition: service_started
+      ragas-verifier:
+        condition: service_started
+      hybrid-retriever:
+        condition: service_started
+    networks:
+      - n8n-network
+
+  python-executor:
+    build:
+      context: .
+      dockerfile: Dockerfile.python-executor
+    container_name: python-executor
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    networks:
+      - n8n-network
+
+  task-runners:
+    build:
+      context: .
+      dockerfile: Dockerfile.runner
+    container_name: n8n-task-runners
+    restart: unless-stopped
+    environment:
+      N8N_EXECUTION_MODE: queue
+      REDIS_URL: redis://redis:6379
+      N8N_NATIVE_PYTHON_RUNNER: "true"
+      N8N_EXECUTE_PYTHON_CODE_ENABLED: "true"
+    depends_on:
+      redis:
+        condition: service_healthy
+      n8n:
+        condition: service_started
+    networks:
+      - n8n-network
+
+  redis:
+    image: redis:8.0.6
+    container_name: redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - n8n-network
+
+  etl-worker:
+    build:
+      context: ./etl_worker
+    restart: unless-stopped
+    depends_on:
+      redis:
+        condition: service_healthy
+      neo4j:
+        condition: service_started
+      pgvector:
+        condition: service_started
+      opensearch:
+        condition: service_started
+      playwright:
+        condition: service_started
+      flaresolverr:
+        condition: service_started
+      mcp-ddg:
+        condition: service_started
+      mcp-paper:
+        condition: service_started
+      ollama:
+        condition: service_started
+    environment:
+      REDIS_URL: redis://redis:6379
+      OLLAMA_BASE_URL: http://ollama:11434
+      OLLAMA_EMBED_MODEL: embeddinggemma:300m
+      NEO4J_URI: bolt://neo4j:7687
+      PGVECTOR_HOST: pgvector
+      OPENSEARCH_URL: http://opensearch:9200
+      PLAYWRIGHT_URL: http://playwright:3000
+      FLARESOLVERR_URL: http://flaresolverr:8191
+      MCP_DDG_URL: http://mcp-ddg:8811
+      MCP_PAPER_URL: http://mcp-paper:8812
+      INPUT_DOCS_DIR: /input_docs
+    volumes:
+      - ./LightRAG/config.ini:/app/LightRAG/config.ini
+      - ./LightRAG/.env:/app/LightRAG/.env
+      - ./LightRAG/data/rag_storage:/app/LightRAG/data/rag_storage
+      - ./LightRAG/data/inputs:/app/LightRAG/data/inputs
+      - ./RetHybRRF/data/inputs:/app/RetHybRRF/data/inputs
+      - "D:/Server/n8n/input document:/input_docs"
+    networks:
+      - n8n-network
+
+  autoscaler:
+    build:
+      context: ./autoscaler
+    restart: unless-stopped
+    depends_on:
+      redis:
+        condition: service_healthy
+    environment:
+      REDIS_URL: redis://redis:6379
+      MIN_WORKERS: "1"
+      MAX_WORKERS: "4"
+      BATCH_SIZE: "20"
+      POLL_INTERVAL: "15"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - n8n-network
+
+  prov-worker:
+    build:
+      context: ./prov_worker
+    restart: unless-stopped
+    depends_on:
+      pgvector:
+        condition: service_started
+      neo4j:
+        condition: service_started
+    environment:
+      NEO4J_URI: bolt://neo4j:7687
+      PGVECTOR_HOST: pgvector
+    networks:
+      - n8n-network
+
+  pgvector:
+    image: pgvector/pgvector:pg17
+    container_name: pgvector
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - pgvector_data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    networks:
+      - n8n-network
+
+  neo4j:
+    image: neo4j:5.26.0
+    container_name: neo4j
+    restart: unless-stopped
+    ports:
+      - "7474:7474"
+      - "7687:7687"
+    environment:
+      NEO4J_AUTH: ${NEO4J_AUTH}
+      NEO4J_PLUGINS: '["apoc"]'
+    volumes:
+      - neo4j_data:/data
+      - neo4j_logs:/logs
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:7474 || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+    networks:
+      - n8n-network
+
+  opensearch:
+    image: opensearchproject/opensearch:2.19.4
+    container_name: opensearch
+    restart: unless-stopped
+    ports:
+      - "9200:9200"
+    environment:
+      discovery.type: single-node
+      plugins.security.disabled: "true"
+      OPENSEARCH_JAVA_OPTS: -Xms512m -Xmx512m
+      OPENSEARCH_INITIAL_ADMIN_PASSWORD: ${OPENSEARCH_INITIAL_ADMIN_PASSWORD}
+    volumes:
+      - opensearch_data:/usr/share/opensearch/data
+    networks:
+      - n8n-network
+
+  hybrid-retriever:
+    build:
+      context: ./hybrid_retriever
+    container_name: hybrid-retriever
+    restart: unless-stopped
+    ports:
+      - "8765:8765"
+    depends_on:
+      pgvector:
+        condition: service_started
+      opensearch:
+        condition: service_started
+      ollama:
+        condition: service_started
+    environment:
+      PGVECTOR_HOST: pgvector
+      OPENSEARCH_URL: http://opensearch:9200
+      LLM_PROVIDER: ollama
+      LLM_MODEL: deepseek-v3.1
+      LLM_BASE_URL: http://ollama.com
+      LLM_API_KEY: ${LLM_API_KEY}
+      EMBEDDING_URL: http://ollama:11434
+      EMBEDDING_MODEL: embeddinggemma:300m
+    networks:
+      - n8n-network
+
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama
+    restart: unless-stopped
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    networks:
+      - n8n-network
+
+  ragas-verifier:
+    build:
+      context: ./ragas-verifier
+    container_name: ragas-verifier
+    restart: unless-stopped
+    ports:
+      - "8900:8900"
+    environment:
+      LLM_PROVIDER: ollama
+      LLM_MODEL: deepseek-v3.1
+      LLM_BASE_URL: http://ollama.com
+      LLM_API_KEY: ${LLM_API_KEY}
+      EMBEDDING_URL: http://ollama:11434
+      EMBEDDING_MODEL: embeddinggemma:300m
+    depends_on:
+      - ollama
+    networks:
+      - n8n-network
+
+  playwright:
+    image: mcr.microsoft.com/playwright:v1.57.0-noble
+    container_name: playwright
+    restart: unless-stopped
+    command: ["bash", "-lc", "npx -y playwright@1.57.0 run-server --host 0.0.0.0 --port 3000"]
+    ports:
+      - "3000:3000"
+    networks:
+      - n8n-network
+
+  flaresolverr:
+    image: ghcr.io/flaresolverr/flaresolverr:latest
+    container_name: boring_jang
+    restart: unless-stopped
+    ports:
+      - "8191:8191"
+    networks:
+      - n8n-network
+
+  mcp-ddg:
+    image: docker/mcp-gateway
+    container_name: mcp-ddg
+    restart: unless-stopped
+    ports:
+      - "8811:8811"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./mcp-config.json:/root/.docker/mcp.json:ro
+    stdin_open: true
+    tty: true
+    networks:
+      - n8n-network
+
+  mcp-paper:
+    image: docker/mcp-gateway
+    container_name: mcp-paper
+    restart: unless-stopped
+    ports:
+      - "8812:8812"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./mcp-config.json:/root/.docker/mcp.json:ro
+    stdin_open: true
+    tty: true
+    networks:
+      - n8n-network
+
+networks:
+  n8n-network:
+    driver: bridge
+  n8n-runner-network:
+    driver: bridge
+
+volumes:
+  n8n-data:
+    external: true
+  pgvector_data:
+  pgadmin_data:
+  neo4j_data:
+  neo4j_logs:
+  ollama_data:
+  opensearch_data:
+  redis_data:

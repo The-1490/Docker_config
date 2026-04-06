@@ -1,0 +1,8 @@
+fastapi
+uvicorn
+pydantic
+opensearch-py
+psycopg[binary]
+openai
+requests
+python-dotenv

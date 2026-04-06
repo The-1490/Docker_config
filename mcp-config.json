@@ -1,0 +1,14 @@
+{
+  "servers": {
+    "ddg": {
+      "command": "docker",
+      "args": ["run", "--rm", "-i", "ghcr.io/modelcontextprotocol/servers/duckduckgo"],
+      "disabled": false
+    },
+    "arxiv": {
+      "command": "docker",
+      "args": ["run", "--rm", "-i", "ghcr.io/modelcontextprotocol/servers/arxiv"],
+      "disabled": false
+    }
+  }
+}

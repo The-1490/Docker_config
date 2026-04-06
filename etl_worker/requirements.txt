@@ -1,0 +1,12 @@
+redis
+neo4j
+psycopg[binary]
+opensearch-py
+requests
+beautifulsoup4
+lxml
+playwright
+openai
+fastapi
+uvicorn
+python-dotenv

@@ -1,0 +1,5 @@
+neo4j
+psycopg[binary]
+requests
+openai
+python-dotenv

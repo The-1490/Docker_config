@@ -1,0 +1,16 @@
+{
+  "runners": [
+    {
+      "name": "javascript-runner",
+      "language": "javascript",
+      "externalModules": ["lodash", "moment", "axios", "date-fns"],
+      "enabled": true
+    },
+    {
+      "name": "python-runner",
+      "language": "python",
+      "externalModules": ["pandas", "numpy", "requests", "bs4", "lxml", "openpyxl"],
+      "enabled": true
+    }
+  ]
+}
