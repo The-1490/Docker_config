@@ -1,0 +1,7 @@
+FROM n8nio/runners:2.10.0
+
+USER root
+RUN cd /opt/runners/task-runner-python && \
+    uv pip install beautifulsoup4 lxml pandas numpy requests openpyxl
+
+USER runner
