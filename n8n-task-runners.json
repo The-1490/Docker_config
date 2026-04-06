@@ -1,16 +1,17 @@
 {
-  "runners": [
+  "task-runners": [
     {
-      "name": "javascript-runner",
-      "language": "javascript",
-      "externalModules": ["lodash", "moment", "axios", "date-fns"],
-      "enabled": true
+      "runner-type": "javascript",
+      "env-overrides": {
+        "NODE_FUNCTION_ALLOW_EXTERNAL": "lodash,moment,axios,date-fns"
+      }
     },
     {
-      "name": "python-runner",
-      "language": "python",
-      "externalModules": ["pandas", "numpy", "requests", "bs4", "lxml", "openpyxl"],
-      "enabled": true
+      "runner-type": "python",
+      "env-overrides": {
+        "PYTHONPATH": "/opt/runners/task-runner-python",
+        "N8N_RUNNERS_EXTERNAL_ALLOW": "pandas,numpy,requests,bs4,lxml,openpyxl"
+      }
     }
   ]
 }
