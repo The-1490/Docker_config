@@ -49,7 +49,7 @@
 			],
 			"env-overrides": {
 				"PYTHONPATH": "/opt/runners/task-runner-python",
-				"N8N_RUNNERS_STDLIB_ALLOW": "",
+				"N8N_RUNNERS_STDLIB_ALLOW": "re, bs4, html, json, datetime, time, math, decimal, uuid",
 				"N8N_RUNNERS_EXTERNAL_ALLOW": "pandas,numpy,requests,bs4,lxml,openpyxl"
 			}
 		}
