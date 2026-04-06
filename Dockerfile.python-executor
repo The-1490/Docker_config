@@ -1,6 +1,13 @@
 FROM python:3.11-slim
 
-RUN pip install --no-cache-dir flask
+RUN pip install --no-cache-dir \
+    flask \
+    beautifulsoup4 \
+    lxml \
+    pandas \
+    numpy \
+    requests \
+    openpyxl
 
 WORKDIR /app
 
