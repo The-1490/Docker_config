@@ -5,6 +5,7 @@ services:
     restart: unless-stopped
     ports:
       - "5550:5678"
+      - "5679:5679" 
     environment:
       N8N_PORT: 5678
       N8N_HOST: 0.0.0.0
@@ -33,6 +34,11 @@ services:
         condition: service_started
       hybrid-retriever:
         condition: service_started
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:5678/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
     networks:
       - n8n-network
 
@@ -64,7 +70,7 @@ services:
       redis:
         condition: service_healthy
       n8n:
-        condition: service_started
+        condition: service_healthy
     networks:
       - n8n-network
 
@@ -83,6 +89,7 @@ services:
       retries: 5
     networks:
       - n8n-network
+ 
 
   etl-worker:
     build:
