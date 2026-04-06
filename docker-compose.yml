@@ -55,7 +55,9 @@ services:
       - n8n-network
 
   task-runners:
-    image: n8nio/runners:2.10.0
+    build:
+      context: .
+      dockerfile: Dockerfile.runners
     container_name: n8n-task-runners
     restart: unless-stopped
     environment:
